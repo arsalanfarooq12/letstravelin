@@ -1,0 +1,243 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+//   output   = "../src/generated/prisma"
+generator client {
+   provider = "prisma-client-js"
+
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Profile {
+  id        String   @id @db.Uuid // Matches auth.users(id) from Supabase
+  fullName  String?
+  avatarUrl String?
+  phone     String?
+  updatedAt DateTime @updatedAt
+  role      UserRole @default(USER) // Set default to customer
+  createdAt DateTime @default(now())
+
+  // Customer Relations
+  bookings Booking[] @relation("CustomerBookings")
+  reviews  Review[]
+
+  // Agent/Admin Relations
+  managedBookings Booking[] @relation("AgentBookings") // Tracks which agent handled a booking
+  createdPackages Package[] @relation("AgentPackages") // Tracks who built a tour package
+  deletedAt       DateTime?
+}
+
+model Destination {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  country     String
+  description String?
+  images      String[]
+  tags        String[]
+  createdAt   DateTime @default(now())
+
+  hotels         Hotel[]
+  transportsFrom Transport[] @relation("TransportOrigin")
+  transports     Transport[] @relation("DestinationTo")
+
+  packages Package[]
+  reviews  Review[]
+}
+
+model Hotel {
+  id            String      @id @default(uuid()) @db.Uuid
+  destinationId String      @db.Uuid
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  name          String
+  rating        Float?
+  amenities     String[]
+  createdAt     DateTime    @default(now())
+
+  rooms        Room[]
+  reviews      Review[]
+  packageItems PackageItem[]
+}
+
+model Room {
+  id            String        @id @default(uuid()) @db.Uuid
+  hotelId       String        @db.Uuid
+  hotel         Hotel         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  type          String
+  capacity      Int
+  pricePerNight Decimal       @db.Decimal(10, 2)
+  totalRooms    Int           @default(1) // Inventory control
+  updatedAt     DateTime      @updatedAt
+  bookings      RoomBooking[] // Track specific room allocations
+}
+
+model Transport {
+  id            String        @id @default(uuid()) @db.Uuid
+  originId      String        @db.Uuid
+  origin        Destination   @relation("TransportOrigin", fields: [originId], references: [id])
+  destinationId String        @db.Uuid
+  destination   Destination   @relation("DestinationTo", fields: [destinationId], references: [id])
+  type          TransportType
+  schedule      DateTime
+  price         Decimal       @db.Decimal(10, 2)
+  totalSeats    Int
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  bookings     Booking[]
+  packageItems PackageItem[]
+}
+
+// 4. Update the Package Model to log who created it
+model Package {
+  id            String      @id @default(uuid()) @db.Uuid
+  destinationId String      @db.Uuid
+  destination   Destination @relation(fields: [destinationId], references: [id])
+
+  // New Field: Track creator
+  createdByUserId String  @db.Uuid
+  creator         Profile @relation("AgentPackages", fields: [createdByUserId], references: [id])
+
+  title        String
+  description  String
+  durationDays Int
+  price        Decimal       @db.Decimal(10, 2)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  bookings     Booking[]
+  reviews      Review[]
+  packageItems PackageItem[]
+}
+
+// 3. Update the Booking Model to track the Agent assignment
+model Booking {
+  id     String  @id @default(uuid()) @db.Uuid
+  userId String  @db.Uuid
+  user   Profile @relation("CustomerBookings", fields: [userId], references: [id])
+
+  // New Field: Optional assignment to an internal agent
+  assignedAgentId String?  @db.Uuid
+  assignedAgent   Profile? @relation("AgentBookings", fields: [assignedAgentId], references: [id])
+
+  type        BookingType
+  transportId String?     @db.Uuid
+  transport   Transport?  @relation(fields: [transportId], references: [id])
+  packageId   String?     @db.Uuid
+  package     Package?    @relation(fields: [packageId], references: [id])
+
+  totalPrice Decimal       @db.Decimal(10, 2)
+  currency   String        @default("USD")
+  status     BookingStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  deletedAt  DateTime?
+  rooms      RoomBooking[]
+  payments   Payment[]
+  updatedAt  DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([assignedAgentId])
+}
+
+// Intermediate table to handle specific dates for specific rooms
+model RoomBooking {
+  id            String   @id @default(uuid()) @db.Uuid
+  bookingId     String   @db.Uuid
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  roomId        String   @db.Uuid
+  room          Room     @relation(fields: [roomId], references: [id])
+  pricePerNight Decimal  @db.Decimal(10, 2) // snapshot at time of booking
+  checkIn       DateTime
+  checkOut      DateTime
+  nights        Int
+}
+
+model Payment {
+  id            String        @id @default(uuid()) @db.Uuid
+  bookingId     String        @db.Uuid
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amount        Decimal       @db.Decimal(10, 2)
+  gateway       String // e.g., "STRIPE", "RAZORPAY"
+  transactionId String        @unique // Gateway reference ID
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+}
+
+model Review {
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @db.Uuid
+  user          Profile      @relation(fields: [userId], references: [id])
+  targetType    ReviewTarget // enum: HOTEL, PACKAGE, DESTINATION
+  hotelId       String?      @db.Uuid
+  hotel         Hotel?       @relation(fields: [hotelId], references: [id])
+  packageId     String?      @db.Uuid
+  package       Package?     @relation(fields: [packageId], references: [id])
+  destinationId String?      @db.Uuid
+  destination   Destination? @relation(fields: [destinationId], references: [id])
+  rating        Int // consider: @@check constraint 1-5
+  body          String?
+  createdAt     DateTime     @default(now())
+
+  @@index([hotelId])
+  @@index([packageId])
+  @@index([destinationId])
+}
+
+model PackageItem {
+  id          String          @id @default(uuid()) @db.Uuid
+  packageId   String          @db.Uuid
+  package     Package         @relation(fields: [packageId], references: [id])
+  itemType    PackageItemType // HOTEL or TRANSPORT
+  hotelId     String?         @db.Uuid
+  hotel       Hotel?          @relation(fields: [hotelId], references: [id])
+  transportId String?         @db.Uuid
+  transport   Transport?      @relation(fields: [transportId], references: [id])
+
+  @@index([packageId])
+}
+
+enum PackageItemType {
+  HOTEL
+  TRANSPORT
+}
+
+enum TransportType {
+  FLIGHT
+  BUS
+  FERRY
+  TRAIN
+}
+
+enum BookingType {
+  HOTEL
+  TRANSPORT
+  PACKAGE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum UserRole {
+  USER
+  AGENT
+  ADMIN
+}
+
+enum ReviewTarget {
+  HOTEL
+  PACKAGE
+  DESTINATION
+}
