@@ -65,9 +65,9 @@ export async function getDestinationById(id) {
         take: 10,
       },
       packages: {
-        include: { items: true },
+        include: { packageItems: true },
       },
-      transports: {
+      transportsFrom: {
         orderBy: { schedule: "asc" },
       },
       _count: {
