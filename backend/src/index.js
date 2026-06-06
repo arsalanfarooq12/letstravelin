@@ -7,6 +7,7 @@ import morgan from "morgan";
 import authRouter from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import destinationsRouter from "./modules/destinations/destinations.routes.js";
+import transportRouter from "./modules/transport/transport.routes.js";
 dotenv.config();
 
 const app = express();
@@ -21,6 +22,7 @@ app.use("/api/auth", authRouter);
 
 app.use("/api/destinations", destinationsRouter);
 
+app.use("/api/transport", transportRouter);
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
