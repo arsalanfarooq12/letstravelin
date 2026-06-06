@@ -30,6 +30,22 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Admin role check — read profile cookie
+  if (pathname.startsWith("/admin")) {
+    const profileRaw = request.cookies.get("lt_profile")?.value;
+    if (!profileRaw) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+    try {
+      const profile = JSON.parse(profileRaw);
+      if (profile.role !== "ADMIN" && profile.role !== "AGENT") {
+        return NextResponse.redirect(new URL("/", request.url));
+      }
+    } catch {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
