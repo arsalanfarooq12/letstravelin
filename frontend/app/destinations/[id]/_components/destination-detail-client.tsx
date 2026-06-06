@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { Star, Loader2, Send } from "lucide-react";
 
@@ -19,18 +19,20 @@ type Props = {
 };
 
 export default function DestinationDetailClient({ destination }: Props) {
-  const { setDestinationDetail, profile } = useStore((s) => ({
-    setDestinationDetail: s.setDestinationDetail,
-    profile: s.profile,
-  }));
+  // Select primitives individually — never select an object inline
+  const setDestinationDetail = useStore((s) => s.setDestinationDetail);
+  const profile = useStore((s) => s.profile);
 
-  // Seed Zustand cache with the server-fetched data
+  // Use a ref to seed the cache only once on mount
+  const seeded = useRef(false);
   useEffect(() => {
+    if (seeded.current) return;
+    seeded.current = true;
     setDestinationDetail(destination.id, {
       data: destination as never,
       cachedAt: Date.now(),
     });
-  }, [destination, setDestinationDetail]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState("");
@@ -89,7 +91,6 @@ export default function DestinationDetailClient({ destination }: Props) {
         Write a review
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* Star rating */}
         <div className="flex flex-col gap-1.5">
           <label
             className="text-xs font-medium"
@@ -110,7 +111,6 @@ export default function DestinationDetailClient({ destination }: Props) {
           </div>
         </div>
 
-        {/* Review body */}
         <div className="flex flex-col gap-1.5">
           <label
             className="text-xs font-medium"
@@ -145,7 +145,7 @@ export default function DestinationDetailClient({ destination }: Props) {
             className="text-xs rounded-lg px-3 py-2"
             style={{ background: "#dcfce7", color: "#166534" }}
           >
-            Review submitted! It will appear after the page refreshes.
+            Review submitted! Hit the refresh button to see it.
           </p>
         )}
 

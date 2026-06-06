@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, Plus, Loader2 } from "lucide-react";
-
+import { revalidateDestinations } from "@/lib/actions";
 type FormData = {
   name: string;
   country: string;
@@ -67,7 +67,7 @@ export default function DestinationForm({
     setTags((prev) => prev.filter((t) => t !== tag));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     setError(null);
 
@@ -96,6 +96,7 @@ export default function DestinationForm({
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Something went wrong");
+        await revalidateDestinations();
         router.push("/admin/destinations");
         router.refresh();
       } catch (err) {

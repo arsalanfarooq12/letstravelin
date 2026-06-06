@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { revalidateDestinations } from "@/lib/actions";
 
 export default function RefreshButton() {
   const router = useRouter();
@@ -12,7 +13,8 @@ export default function RefreshButton() {
 
   function handleRefresh() {
     invalidateDestinations();
-    startTransition(() => {
+    startTransition(async () => {
+      await revalidateDestinations();
       router.refresh();
     });
   }
