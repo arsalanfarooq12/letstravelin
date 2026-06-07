@@ -10,6 +10,7 @@ import destinationsRouter from "./modules/destinations/destinations.routes.js";
 import transportRouter from "./modules/transport/transport.routes.js";
 import packagesRouter from "./modules/packages/packages.routes.js";
 import hotelsRouter from "./modules/hotels/hotels.routes.js";
+import bookingsRouter from "./modules/bookings/bookings.routes.js";
 dotenv.config();
 
 const app = express();
@@ -25,7 +26,7 @@ app.use("/api/destinations", destinationsRouter);
 app.use("/api/hotels", hotelsRouter);
 app.use("/api/transport", transportRouter);
 app.use("/api/packages", packagesRouter);
-
+app.use("/api/bookings", bookingsRouter);
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
