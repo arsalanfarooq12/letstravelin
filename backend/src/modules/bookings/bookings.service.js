@@ -1,3 +1,4 @@
+import { time } from "console";
 import { prisma } from "../../lib/prisma.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -11,7 +12,7 @@ async function assertBookingExists(id) {
 }
 
 const bookingInclude = {
-  user: { select: { id: true, fullName: true, email: true } },
+  user: { select: { id: true, fullName: true } },
   assignedAgent: { select: { id: true, fullName: true } },
   transport: {
     include: {
@@ -102,30 +103,33 @@ async function createHotelBooking(userId, { rooms, currency }) {
   }
 
   // create booking + all room bookings in a transaction
-  return prisma.$transaction(async (tx) => {
-    const booking = await tx.booking.create({
-      data: {
-        userId,
-        type: "HOTEL",
-        totalPrice,
-        currency,
-        status: "PENDING",
-        rooms: {
-          create: roomValidations.map(
-            ({ room, checkIn, checkOut, nights, pricePerNight }) => ({
-              roomId: room.id,
-              checkIn,
-              checkOut,
-              nights,
-              pricePerNight,
-            })
-          ),
+  return prisma.$transaction(
+    async (tx) => {
+      const booking = await tx.booking.create({
+        data: {
+          userId,
+          type: "HOTEL",
+          totalPrice,
+          currency,
+          status: "PENDING",
+          rooms: {
+            create: roomValidations.map(
+              ({ room, checkIn, checkOut, nights, pricePerNight }) => ({
+                roomId: room.id,
+                checkIn,
+                checkOut,
+                nights,
+                pricePerNight,
+              })
+            ),
+          },
         },
-      },
-      include: bookingInclude,
-    });
-    return booking;
-  });
+        include: bookingInclude,
+      });
+      return booking;
+    },
+    { timeout: 30000 }
+  );
 }
 
 async function createTransportBooking(
@@ -258,34 +262,37 @@ async function createPackageBooking(
 
   const totalPrice = Number(pkg.price) * seats;
 
-  return prisma.$transaction(async (tx) => {
-    const booking = await tx.booking.create({
-      data: {
-        userId,
-        type: "PACKAGE",
-        packageId,
-        totalPrice,
-        currency,
-        status: "PENDING",
-        // create room bookings for hotel items in the package
-        rooms: {
-          create: pkg.packageItems
-            .filter((i) => i.itemType === "HOTEL" && i.hotel?.rooms?.length)
-            .flatMap((i) =>
-              i.hotel.rooms.map((room) => ({
-                roomId: room.id,
-                checkIn,
-                checkOut,
-                nights,
-                pricePerNight: room.pricePerNight,
-              }))
-            ),
+  return prisma.$transaction(
+    async (tx) => {
+      const booking = await tx.booking.create({
+        data: {
+          userId,
+          type: "PACKAGE",
+          packageId,
+          totalPrice,
+          currency,
+          status: "PENDING",
+          // create room bookings for hotel items in the package
+          rooms: {
+            create: pkg.packageItems
+              .filter((i) => i.itemType === "HOTEL" && i.hotel?.rooms?.length)
+              .flatMap((i) =>
+                i.hotel.rooms.map((room) => ({
+                  roomId: room.id,
+                  checkIn,
+                  checkOut,
+                  nights,
+                  pricePerNight: room.pricePerNight,
+                }))
+              ),
+          },
         },
-      },
-      include: bookingInclude,
-    });
-    return booking;
-  });
+        include: bookingInclude,
+      });
+      return booking;
+    },
+    { timeout: 30000 }
+  );
 }
 
 // ─── Read Bookings ────────────────────────────────────────────────
@@ -392,25 +399,28 @@ export async function markBookingPaid(id, paymentData) {
     };
   }
 
-  return prisma.$transaction(async (tx) => {
-    // create payment record
-    await tx.payment.create({
-      data: {
-        bookingId: id,
-        amount: paymentData.amount,
-        gateway: paymentData.gateway,
-        transactionId: paymentData.transactionId,
-        status: "SUCCESS",
-      },
-    });
+  return prisma.$transaction(
+    async (tx) => {
+      // create payment record
+      await tx.payment.create({
+        data: {
+          bookingId: id,
+          amount: paymentData.amount,
+          gateway: paymentData.gateway,
+          transactionId: paymentData.transactionId,
+          status: "SUCCESS",
+        },
+      });
 
-    // confirm the booking
-    return tx.booking.update({
-      where: { id },
-      data: { status: "CONFIRMED", updatedAt: new Date() },
-      include: bookingInclude,
-    });
-  });
+      // confirm the booking
+      return tx.booking.update({
+        where: { id },
+        data: { status: "CONFIRMED", updatedAt: new Date() },
+        include: bookingInclude,
+      });
+    },
+    { timeout: 30000 }
+  );
 }
 
 export async function markBookingCompleted(id) {

@@ -16,6 +16,9 @@ const globalForPrisma = globalThis;
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    transactionOptions: {
+      timeout: 30000,
+    },
     adapter, // <-- CRITICAL: Injects the connection pool driver into runtime
     log:
       process.env.NODE_ENV === "development" ? ["query", "error"] : ["error"],
