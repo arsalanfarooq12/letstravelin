@@ -1,43 +1,63 @@
-# TravelApp — Backend API
+# ✈️ TravelApp — Backend API
 
 A full-featured travel agency REST API built with **Node.js**, **Express**, **Prisma ORM**, **PostgreSQL (Supabase)**, and **Supabase Auth**. Designed to scale from a solo-developer zero-budget launch to 50k+ users.
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 travel-app/
-├── frontend/                     # Next.js app (separate)
+├── frontend/                         # Next.js app (separate)
 └── backend/
     ├── prisma/
-    │   └── schema.prisma         # Full database schema
+    │   └── schema.prisma             # Full database schema
     ├── src/
-    │   ├── index.js              # Express app entry point
+    │   ├── index.js                  # Express app entry point
     │   ├── lib/
-    │   │   ├── prisma.js         # Prisma client singleton
-    │   │   └── supabase.js       # Supabase admin client
+    │   │   ├── prisma.js             # Prisma client singleton
+    │   │   └── supabase.js           # Supabase admin client
     │   ├── middleware/
-    │   │   ├── auth.middleware.js     # JWT verification + profile fetch
-    │   │   ├── role.middleware.js     # Role-based access control
-    │   │   └── error.middleware.js    # Global error + Zod handler
-    │   ├── modules/
-    │   │   ├── auth/
-    │   │   │   ├── auth.routes.js
-    │   │   │   ├── auth.controller.js
-    │   │   │   ├── auth.service.js
-    │   │   │   └── auth.schema.js
-    │   │   └── destinations/
-    │   │       ├── destinations.routes.js
-    │   │       ├── destinations.controller.js
-    │   │       ├── destinations.service.js
-    │   │       └── destinations.schema.js
+    │   │   ├── auth.middleware.js    # JWT verification + profile fetch
+    │   │   ├── role.middleware.js    # Role-based access control
+    │   │   └── error.middleware.js   # Global error + Zod handler
+    │   └── modules/
+    │       ├── auth/
+    │       │   ├── auth.routes.js
+    │       │   ├── auth.controller.js
+    │       │   ├── auth.service.js
+    │       │   └── auth.schema.js
+    │       ├── destinations/
+    │       │   ├── destinations.routes.js
+    │       │   ├── destinations.controller.js
+    │       │   ├── destinations.service.js
+    │       │   └── destinations.schema.js
+    │       ├── hotels/
+    │       │   ├── hotels.routes.js
+    │       │   ├── hotels.controller.js
+    │       │   ├── hotels.service.js
+    │       │   └── hotels.schema.js
+    │       ├── transport/
+    │       │   ├── transport.routes.js
+    │       │   ├── transport.controller.js
+    │       │   ├── transport.service.js
+    │       │   └── transport.schema.js
+    │       ├── packages/
+    │       │   ├── packages.routes.js
+    │       │   ├── packages.controller.js
+    │       │   ├── packages.service.js
+    │       │   └── packages.schema.js
+    │       └── bookings/
+    │           ├── bookings.routes.js
+    │           ├── bookings.controller.js
+    │           ├── bookings.service.js
+    │           └── bookings.schema.js
     └── package.json
 ```
 
 ---
 
-## Tech Stack
+## ⚙️ Tech Stack
 
 | Layer      | Technology              |
 | ---------- | ----------------------- |
@@ -51,7 +71,7 @@ travel-app/
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
 ### 1. Clone & install
 
@@ -124,26 +144,28 @@ npm run dev       # uses concurrently
 ### Enums
 
 ```prisma
-UserRole      → USER | AGENT | ADMIN
-BookingType   → HOTEL | TRANSPORT | PACKAGE
-BookingStatus → PENDING | CONFIRMED | CANCELLED | COMPLETED
-PaymentStatus → PENDING | SUCCESS | FAILED | REFUNDED
-TransportType → FLIGHT | BUS | FERRY | TRAIN
-ReviewTarget  → HOTEL | PACKAGE | DESTINATION
+UserRole        → USER | AGENT | ADMIN
+BookingType     → HOTEL | TRANSPORT | PACKAGE
+BookingStatus   → PENDING | CONFIRMED | CANCELLED | COMPLETED
+PaymentStatus   → PENDING | SUCCESS | FAILED | REFUNDED
+TransportType   → FLIGHT | BUS | FERRY | TRAIN
+ReviewTarget    → HOTEL | PACKAGE | DESTINATION
 PackageItemType → HOTEL | TRANSPORT
 ```
 
 ### Key design decisions
 
 - **Soft delete** on `Profile` and `Booking` via `deletedAt DateTime?` — financial records are never hard deleted
-- **Price snapshots** on `RoomBooking.pricePerNight` — preserves what the customer was charged even if room prices change later
-- **Computed availability** — `availableSeats` is not stored; computed as `totalSeats - bookedCount` at query time to prevent desync
+- **Price snapshots** on `RoomBooking.pricePerNight` — preserves the charge at time of booking even if room prices change later
+- **Computed availability** — seat/room counts are never stored; computed as `total - bookedCount` at query time to prevent desync
 - **Polymorphic reviews** — single `Review` model handles hotel, package, and destination reviews via `targetType` enum
-- **Named Prisma relations** — disambiguates multiple foreign keys pointing at `Profile` (`CustomerBookings` vs `AgentBookings`)
+- **Named Prisma relations** — disambiguates multiple FKs pointing at `Profile` (`CustomerBookings` vs `AgentBookings`)
+- **Prisma transactions** — hotel and package bookings use `prisma.$transaction` to guarantee atomic creation of booking + room allocations
+- **`onDelete: Restrict`** on `RoomBooking → Room` — prevents deleting rooms that have booking history
 
 ---
 
-## Authentication
+## 🔐 Authentication
 
 Authentication is handled entirely by **Supabase Auth**. The backend verifies JWTs on protected routes and fetches the user's role from the `Profile` table.
 
@@ -157,7 +179,7 @@ Authentication is handled entirely by **Supabase Auth**. The backend verifies JW
 
 ### Supabase profile trigger
 
-A Postgres trigger auto-creates a `Profile` row in your public schema whenever a new user signs up in `auth.users`:
+A Postgres trigger auto-creates a `Profile` row whenever a user signs up:
 
 ```sql
 create function public.handle_new_user()
@@ -188,14 +210,14 @@ http://localhost:5000/api
 
 ### Auth — `/api/auth`
 
-| Method | Endpoint          | Auth | Description                             |
-| ------ | ----------------- | ---- | --------------------------------------- |
-| POST   | `/register`       | —    | Create a new account                    |
-| POST   | `/login`          | —    | Sign in, returns access + refresh token |
-| POST   | `/logout`         | —    | Invalidate current session              |
-| POST   | `/reset-password` | —    | Send password reset email               |
-| GET    | `/profile`        | ✅   | Get authenticated user's profile        |
-| PATCH  | `/profile`        | ✅   | Update authenticated user's profile     |
+| Method | Endpoint          | Auth | Role | Description                             |
+| ------ | ----------------- | ---- | ---- | --------------------------------------- |
+| POST   | `/register`       | —    | —    | Create a new account                    |
+| POST   | `/login`          | —    | —    | Sign in, returns access + refresh token |
+| POST   | `/logout`         | —    | —    | Invalidate current session              |
+| POST   | `/reset-password` | —    | —    | Send password reset email               |
+| GET    | `/profile`        | ✅   | —    | Get authenticated user's profile        |
+| PATCH  | `/profile`        | ✅   | —    | Update authenticated user's profile     |
 
 #### Register
 
@@ -210,19 +232,7 @@ Content-Type: application/json
 }
 ```
 
-#### Login
-
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "securepassword"
-}
-```
-
-Response:
+#### Login response
 
 ```json
 {
@@ -248,40 +258,256 @@ Response:
 | POST   | `/:id/reviews`           | ✅   | USER       | Submit a review                                |
 | DELETE | `/:id/reviews/:reviewId` | ✅   | USER/ADMIN | Delete a review                                |
 
-#### Query parameters for GET `/`
+#### Query parameters
 
-| Param     | Type   | Description                                   |
-| --------- | ------ | --------------------------------------------- |
-| `search`  | string | Full-text search on name and description      |
-| `country` | string | Filter by country                             |
-| `tags`    | string | Comma-separated tags e.g. `beach,adventure`   |
-| `limit`   | number | Results per page (1–50, default 12)           |
-| `cursor`  | uuid   | Cursor for next page (from previous response) |
+| Param     | Type   | Description                              |
+| --------- | ------ | ---------------------------------------- |
+| `search`  | string | Full-text search on name and description |
+| `country` | string | Filter by country                        |
+| `tags`    | string | Comma-separated e.g. `beach,adventure`   |
+| `limit`   | number | Results per page (1–50, default 12)      |
+| `cursor`  | uuid   | Cursor for next page                     |
 
-#### Example requests
+---
 
-```bash
-# List all
-curl http://localhost:5000/api/destinations
+### Hotels — `/api/hotels`
 
-# Search
-curl "http://localhost:5000/api/destinations?search=goa&tags=beach,nightlife"
+| Method | Endpoint                          | Auth | Role        | Description                       |
+| ------ | --------------------------------- | ---- | ----------- | --------------------------------- |
+| GET    | `/`                               | —    | —           | List hotels with search & filters |
+| GET    | `/:id`                            | —    | —           | Get hotel with rooms & reviews    |
+| POST   | `/`                               | ✅   | AGENT/ADMIN | Create hotel                      |
+| PATCH  | `/:id`                            | ✅   | AGENT/ADMIN | Update hotel                      |
+| DELETE | `/:id`                            | ✅   | ADMIN       | Delete hotel                      |
+| GET    | `/:id/rooms`                      | —    | —           | List rooms for a hotel            |
+| POST   | `/:id/rooms`                      | ✅   | AGENT/ADMIN | Add room to hotel                 |
+| PATCH  | `/:id/rooms/:roomId`              | ✅   | AGENT/ADMIN | Update room                       |
+| DELETE | `/:id/rooms/:roomId`              | ✅   | ADMIN       | Delete room                       |
+| GET    | `/:id/availability`               | —    | —           | All rooms availability for dates  |
+| GET    | `/:id/rooms/:roomId/availability` | —    | —           | Single room availability          |
+| GET    | `/:id/reviews`                    | —    | —           | Get hotel reviews                 |
+| POST   | `/:id/reviews`                    | ✅   | USER        | Submit a review                   |
+| DELETE | `/:id/reviews/:reviewId`          | ✅   | USER/ADMIN  | Delete a review                   |
 
-# Paginate
-curl "http://localhost:5000/api/destinations?cursor=<last-id>&limit=12"
+#### Query parameters
 
-# Create (admin)
-curl -X POST http://localhost:5000/api/destinations \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Goa","country":"India","tags":["beach","nightlife"],"images":[]}'
+| Param           | Type   | Description                         |
+| --------------- | ------ | ----------------------------------- |
+| `destinationId` | uuid   | Filter by destination               |
+| `search`        | string | Search hotel name                   |
+| `minRating`     | number | Minimum star rating (1–5)           |
+| `amenities`     | string | Comma-separated e.g. `wifi,pool`    |
+| `minPrice`      | number | Minimum room price per night        |
+| `maxPrice`      | number | Maximum room price per night        |
+| `limit`         | number | Results per page (1–50, default 12) |
+| `cursor`        | uuid   | Cursor for next page                |
 
-# Submit review
-curl -X POST http://localhost:5000/api/destinations/<id>/reviews \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"rating":5,"body":"Absolutely stunning destination!"}'
+#### Availability response
+
+```json
+{
+  "hotelId": "uuid",
+  "checkIn": "2025-12-01T00:00:00.000Z",
+  "checkOut": "2025-12-05T00:00:00.000Z",
+  "nights": 4,
+  "hasAnyAvailability": true,
+  "rooms": [
+    {
+      "roomId": "uuid",
+      "type": "Deluxe Suite",
+      "pricePerNight": "149.99",
+      "totalRooms": 5,
+      "bookedCount": 2,
+      "availableCount": 3,
+      "isAvailable": true
+    }
+  ]
+}
 ```
+
+---
+
+### Transport — `/api/transport`
+
+| Method | Endpoint            | Auth | Role        | Description                             |
+| ------ | ------------------- | ---- | ----------- | --------------------------------------- |
+| GET    | `/`                 | —    | —           | List routes with filters & pagination   |
+| GET    | `/:id`              | —    | —           | Get route with live seat count          |
+| GET    | `/:id/availability` | —    | —           | Detailed seat availability breakdown    |
+| POST   | `/validate`         | ✅   | USER        | Validate booking intent before purchase |
+| POST   | `/`                 | ✅   | AGENT/ADMIN | Create transport route                  |
+| PATCH  | `/:id`              | ✅   | AGENT/ADMIN | Update route                            |
+| DELETE | `/:id`              | ✅   | ADMIN       | Delete route                            |
+
+#### Query parameters
+
+| Param           | Type   | Description                            |
+| --------------- | ------ | -------------------------------------- |
+| `originId`      | uuid   | Filter by origin destination           |
+| `destinationId` | uuid   | Filter by arrival destination          |
+| `type`          | enum   | `FLIGHT`, `BUS`, `FERRY`, `TRAIN`      |
+| `date`          | date   | Filter schedules on this calendar day  |
+| `minPrice`      | number | Minimum ticket price                   |
+| `maxPrice`      | number | Maximum ticket price                   |
+| `minSeats`      | number | Only show routes with at least N seats |
+| `limit`         | number | Results per page (1–50, default 12)    |
+| `cursor`        | uuid   | Cursor for next page                   |
+
+#### Availability response
+
+```json
+{
+  "transportId": "uuid",
+  "type": "FLIGHT",
+  "schedule": "2025-12-01T08:00:00.000Z",
+  "totalSeats": 180,
+  "bookedCount": 43,
+  "availableSeats": 137,
+  "isSoldOut": false,
+  "occupancyRate": 24,
+  "statusBreakdown": [
+    { "status": "CONFIRMED", "count": 38 },
+    { "status": "PENDING", "count": 5 }
+  ]
+}
+```
+
+---
+
+### Packages — `/api/packages`
+
+| Method | Endpoint             | Auth | Role        | Description                                  |
+| ------ | -------------------- | ---- | ----------- | -------------------------------------------- |
+| GET    | `/`                  | —    | —           | List packages with search & filters          |
+| GET    | `/:id`               | —    | —           | Get package with full items breakdown        |
+| POST   | `/`                  | ✅   | AGENT/ADMIN | Create package                               |
+| PATCH  | `/:id`               | ✅   | AGENT/ADMIN | Update package                               |
+| DELETE | `/:id`               | ✅   | ADMIN       | Delete package                               |
+| GET    | `/:id/items`         | —    | —           | List all items in a package                  |
+| POST   | `/:id/items`         | ✅   | AGENT/ADMIN | Add hotel or transport to package            |
+| DELETE | `/:id/items/:itemId` | ✅   | AGENT/ADMIN | Remove item from package                     |
+| POST   | `/validate`          | ✅   | USER        | Validate package availability before booking |
+
+#### Query parameters
+
+| Param           | Type   | Description                         |
+| --------------- | ------ | ----------------------------------- |
+| `destinationId` | uuid   | Filter by destination               |
+| `search`        | string | Search title and description        |
+| `minPrice`      | number | Minimum package price               |
+| `maxPrice`      | number | Maximum package price               |
+| `minDays`       | number | Minimum duration in days            |
+| `maxDays`       | number | Maximum duration in days            |
+| `limit`         | number | Results per page (1–50, default 12) |
+| `cursor`        | uuid   | Cursor for next page                |
+
+#### Validate response
+
+```json
+{
+  "valid": true,
+  "packageTitle": "Goa Beach Getaway",
+  "nights": 5,
+  "seats": 2,
+  "totalPrice": 599.98,
+  "currency": "USD",
+  "items": [
+    {
+      "itemType": "HOTEL",
+      "hotelName": "Taj Holiday Village",
+      "isAvailable": true
+    },
+    {
+      "itemType": "TRANSPORT",
+      "type": "FLIGHT",
+      "availableSeats": 54,
+      "isAvailable": true
+    }
+  ],
+  "blockers": []
+}
+```
+
+---
+
+### Bookings — `/api/bookings`
+
+| Method | Endpoint         | Auth | Role        | Description                                 |
+| ------ | ---------------- | ---- | ----------- | ------------------------------------------- |
+| POST   | `/`              | ✅   | USER        | Create hotel, transport, or package booking |
+| GET    | `/my`            | ✅   | USER        | Get own bookings                            |
+| GET    | `/:id`           | ✅   | USER        | Get single booking detail                   |
+| PATCH  | `/:id/cancel`    | ✅   | USER        | Cancel own booking                          |
+| GET    | `/managed`       | ✅   | AGENT/ADMIN | Get agent's assigned bookings               |
+| PATCH  | `/:id/paid`      | ✅   | AGENT/ADMIN | Mark booking as paid manually               |
+| PATCH  | `/:id/completed` | ✅   | AGENT/ADMIN | Mark booking as completed                   |
+| GET    | `/`              | ✅   | ADMIN       | Get all bookings                            |
+| PATCH  | `/:id/assign`    | ✅   | ADMIN       | Assign agent to a booking                   |
+
+#### Create booking — Hotel
+
+```json
+{
+  "type": "HOTEL",
+  "currency": "USD",
+  "rooms": [
+    { "roomId": "uuid", "checkIn": "2025-12-01", "checkOut": "2025-12-05" }
+  ]
+}
+```
+
+#### Create booking — Transport
+
+```json
+{
+  "type": "TRANSPORT",
+  "transportId": "uuid",
+  "seats": 2,
+  "currency": "USD"
+}
+```
+
+#### Create booking — Package
+
+```json
+{
+  "type": "PACKAGE",
+  "packageId": "uuid",
+  "checkIn": "2025-12-01",
+  "checkOut": "2025-12-06",
+  "seats": 2,
+  "currency": "USD"
+}
+```
+
+#### Mark as paid (agent)
+
+```json
+{
+  "amount": 299.99,
+  "gateway": "BANK_TRANSFER",
+  "transactionId": "TXN-20251201-001"
+}
+```
+
+#### Booking status flow
+
+```
+PENDING   → CONFIRMED  (after markPaid)
+PENDING   → CANCELLED  (user or agent)
+CONFIRMED → COMPLETED  (agent marks done)
+CONFIRMED → CANCELLED  (agent/admin only)
+COMPLETED → (terminal — no further transitions)
+```
+
+#### Query parameters for booking lists
+
+| Param    | Type   | Description                                      |
+| -------- | ------ | ------------------------------------------------ |
+| `status` | enum   | `PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED` |
+| `type`   | enum   | `HOTEL`, `TRANSPORT`, `PACKAGE`                  |
+| `limit`  | number | Results per page (1–50, default 10)              |
+| `cursor` | uuid   | Cursor for next page                             |
 
 ---
 
@@ -289,23 +515,20 @@ curl -X POST http://localhost:5000/api/destinations/<id>/reviews \
 
 ### `requireAuth`
 
-Verifies the Supabase JWT and attaches `req.user` with role. Applied to all protected routes.
+Verifies the Supabase JWT, checks the profile exists and is not soft-deleted, attaches `req.user` with `{ id, email, role, fullName }`.
 
 ### `requireRole(...roles)`
 
 Role guard applied after `requireAuth`. Accepts one or more roles:
 
 ```javascript
-// Single role
 router.post("/", requireAuth, requireRole("ADMIN"), controller);
-
-// Multiple roles
 router.patch("/:id", requireAuth, requireRole("ADMIN", "AGENT"), controller);
 ```
 
 ### `errorHandler`
 
-Global error handler — must be registered last in `index.js`. Handles:
+Global error handler — registered last in `index.js`. Handles:
 
 | Error type                       | HTTP Status | Response                                  |
 | -------------------------------- | ----------- | ----------------------------------------- |
@@ -319,15 +542,15 @@ Global error handler — must be registered last in `index.js`. Handles:
 
 ## 📦 Modules Status
 
-| Module         | Status      | Notes                                 |
-| -------------- | ----------- | ------------------------------------- |
-| Auth & Users   | ✅ Complete | Register, login, logout, profile CRUD |
-| Destinations   | ✅ Complete | CRUD, search, pagination, reviews     |
-| Hotels & Rooms | 🔜 Next     | —                                     |
-| Transport      | 🔜 Planned  | —                                     |
-| Packages       | 🔜 Planned  | —                                     |
-| Bookings       | 🔜 Planned  | —                                     |
-| Payments       | 🔜 Planned  | Stripe / Razorpay integration         |
+| Module         | Status      | Features                                                        |
+| -------------- | ----------- | --------------------------------------------------------------- |
+| Auth & Users   | ✅ Complete | Register, login, logout, reset password, profile CRUD           |
+| Destinations   | ✅ Complete | CRUD, search & filter, pagination, polymorphic reviews          |
+| Hotels & Rooms | ✅ Complete | CRUD, room management, availability checking, reviews           |
+| Transport      | ✅ Complete | CRUD, search & filter, seat availability, booking validation    |
+| Packages       | ✅ Complete | CRUD, item composition, availability validation                 |
+| Bookings       | ✅ Complete | All three types, cancellation, agent assignment, manual payment |
+| Payments       | 🔜 Planned  | Stripe / Razorpay integration                                   |
 
 ---
 
@@ -338,8 +561,8 @@ React (Next.js)  →  Express API  →  Prisma Client  →  PostgreSQL (Supabase
                          ↓
                    Supabase Auth
                          ↓
-                      Redis (future)
-                      Cloudinary (images)
+                    Redis (future)
+                    Cloudinary (images)
 ```
 
 ### Monorepo layout
@@ -354,8 +577,8 @@ travel-app/
 
 1. Add **Redis / Upstash** for session caching and search result caching
 2. Add **Elasticsearch / Typesense** for full-text destination + hotel search
-3. Extract **Bookings** into its own service with **BullMQ** job queue for async confirmation emails
-4. Migrate DB to dedicated **RDS instance** with read replicas
+3. Extract **Bookings** into its own service with **BullMQ** for async confirmation emails
+4. Migrate DB to a dedicated **RDS instance** with read replicas
 5. Split monolith into **microservices** per module
 
 ---
@@ -363,12 +586,13 @@ travel-app/
 ## 📋 Development Scripts
 
 ```bash
-npm run dev            # start with nodemon (hot reload)
-npm run start          # production start
-npx prisma db push     # sync schema to database (dev)
-npx prisma migrate dev # create a tracked migration
-npx prisma studio      # open visual DB browser at :5555
-npx prisma generate    # regenerate Prisma Client after schema changes
+npm run dev             # start with nodemon (hot reload)
+npm run start           # production start
+npx prisma db push      # sync schema to DB (dev, no migration history)
+npx prisma migrate dev  # create a tracked migration (staging/prod)
+npx prisma migrate deploy # apply migrations in production
+npx prisma studio       # open visual DB browser at :5555
+npx prisma generate     # regenerate Prisma Client after schema changes
 ```
 
 ---
@@ -376,12 +600,14 @@ npx prisma generate    # regenerate Prisma Client after schema changes
 ## 🔒 Security Notes
 
 - Supabase **service role key** is only used server-side — never exposed to the client
-- Supabase Auth handles password hashing, token rotation, and OAuth
+- Supabase Auth handles password hashing, token rotation, and OAuth providers
 - `helmet()` sets secure HTTP headers on all responses
 - `cors()` is restricted to `FRONTEND_URL` only
-- Passwords reset via Supabase — no custom reset token logic needed
+- Role is stored in your own `Profile` table — prevents privilege escalation via token manipulation
 - Soft delete on `Booking` and `Profile` ensures financial records are never permanently lost
-- Role is stored in your own `Profile` table, not the Supabase JWT — prevents privilege escalation via token manipulation
+- `prisma.$transaction` on hotel and package bookings prevents partial writes
+- `transactionId @unique` on `Payment` prevents duplicate payment records from gateway webhooks
+- Booking cancellation and status transitions are strictly enforced in the service layer
 
 ---
 
