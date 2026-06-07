@@ -1,4 +1,4 @@
-# ✈️ TravelApp — Backend API
+# TravelApp — Backend API
 
 A full-featured travel agency REST API built with **Node.js**, **Express**, **Prisma ORM**, **PostgreSQL (Supabase)**, and **Supabase Auth**. Designed to scale from a solo-developer zero-budget launch to 50k+ users.
 
