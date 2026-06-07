@@ -53,6 +53,9 @@ export default function Navbar({ profile }: { profile: Profile | null }) {
         >
           Hotels
         </Link>
+        <Link href="/packages" className="text-sm" style={{ color: "#a8dfc4" }}>
+          Packages
+        </Link>
         {profile && (
           <Link
             href="/bookings/my"
