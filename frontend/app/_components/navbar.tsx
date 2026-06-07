@@ -40,10 +40,18 @@ export default function Navbar({ profile }: { profile: Profile | null }) {
       <nav className="hidden md:flex items-center gap-6">
         <Link
           href="/destinations"
-          className="text-sm"
+          className="text-lg font-medium"
           style={{ color: "#a8dfc4" }}
         >
           Destinations
+        </Link>
+
+        <Link
+          href="/hotels"
+          className="text-lg font-medium"
+          style={{ color: "#a8dfc4" }}
+        >
+          Hotels
         </Link>
       </nav>
 
