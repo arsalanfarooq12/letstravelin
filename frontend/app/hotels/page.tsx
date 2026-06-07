@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Navbar from "@/app/_components/navbar";
 import HotelFilters from "./_components/hotel_filters";
 import HotelGrid from "./_components/hotel-grid";
+import FilterDrawer from "@/app/_components/filter-drawer";
 import { getSession } from "@/lib/session";
 
 function HotelGridSkeleton() {
@@ -73,23 +74,24 @@ export default async function HotelsPage({
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto w-full px-6 py-10 flex gap-8 items-start">
-        {/* Sidebar */}
-        <aside className="hidden lg:block w-64 flex-shrink-0">
+      <div className="max-w-6xl mx-auto w-full px-6 py-8">
+        <div className="flex flex-col gap-6t">
           <Suspense>
-            <HotelFilters />
+            <FilterDrawer>
+              <HotelFilters />
+            </FilterDrawer>
           </Suspense>
-        </aside>
 
-        {/* Grid */}
-        <main className="flex-1 min-w-0">
-          <Suspense
-            key={JSON.stringify(params)}
-            fallback={<HotelGridSkeleton />}
-          >
-            <HotelGrid {...params} />
-          </Suspense>
-        </main>
+          {/* Grid */}
+          <div>
+            <Suspense
+              key={JSON.stringify(params)}
+              fallback={<HotelGridSkeleton />}
+            >
+              <HotelGrid {...params} />
+            </Suspense>
+          </div>
+        </div>
       </div>
     </div>
   );

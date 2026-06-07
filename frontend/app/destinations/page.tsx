@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Navbar from "@/app/_components/navbar";
 import Filters from "./_components/filters";
 import DestinationList from "./_components/destination-list";
+import FilterDrawer from "@/app/_components/filter-drawer";
 import { getSession } from "@/lib/session";
 
 function DestinationListSkeleton() {
@@ -70,28 +71,30 @@ export default async function DestinationsPage({
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto w-full px-6 py-10 flex gap-8 items-start">
-        {/* Sidebar filters */}
-        <aside className=" lg:block w-64 flex-shrink-0">
+      <div className="max-w-6xl mx-auto w-full px-6 py-8">
+        {/* Mobile + Desktop filter layout */}
+        <div className="flex flex-col gap-6">
           <Suspense>
-            <Filters />
+            <FilterDrawer>
+              <Filters />
+            </FilterDrawer>
           </Suspense>
-        </aside>
 
-        {/* List */}
-        <main className="flex-1 min-w-0">
-          <Suspense
-            key={`${search}-${country}-${tags}-${cursor}`}
-            fallback={<DestinationListSkeleton />}
-          >
-            <DestinationList
-              search={search}
-              country={country}
-              tags={tags}
-              cursor={cursor}
-            />
-          </Suspense>
-        </main>
+          {/* List */}
+          <div>
+            <Suspense
+              key={`${search}-${country}-${tags}-${cursor}`}
+              fallback={<DestinationListSkeleton />}
+            >
+              <DestinationList
+                search={search}
+                country={country}
+                tags={tags}
+                cursor={cursor}
+              />
+            </Suspense>
+          </div>
+        </div>
       </div>
     </div>
   );
