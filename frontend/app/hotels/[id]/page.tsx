@@ -249,7 +249,7 @@ export default async function HotelPage({
                       available
                     </p>
                     <Link
-                      href={`/destinations/${hotel.destination.id}`}
+                      href={`/bookings/new?type=HOTEL&id=${hotel.id}&roomId=${room.id}`}
                       className="text-xs font-medium px-3 py-1.5 rounded-lg"
                       style={{
                         background: "var(--brand-green)",

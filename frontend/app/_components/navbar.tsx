@@ -53,6 +53,15 @@ export default function Navbar({ profile }: { profile: Profile | null }) {
         >
           Hotels
         </Link>
+        {profile && (
+          <Link
+            href="/bookings/my"
+            className="text-sm"
+            style={{ color: "#a8dfc4" }}
+          >
+            My Bookings
+          </Link>
+        )}
       </nav>
 
       {/* Auth */}

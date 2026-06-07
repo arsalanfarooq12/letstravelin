@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/destinations",
   "/hotels",
+  "/packages",
 ];
 
 export function proxy(request: NextRequest) {
@@ -16,7 +17,8 @@ export function proxy(request: NextRequest) {
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname === p) ||
     pathname.startsWith("/destinations/") ||
-    pathname.startsWith("/hotels/");
+    pathname.startsWith("/hotels/") ||
+    pathname.startsWith("/packages/");
 
   const hasSession = request.cookies.has("lt_access");
 
