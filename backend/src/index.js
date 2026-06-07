@@ -8,6 +8,8 @@ import authRouter from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import destinationsRouter from "./modules/destinations/destinations.routes.js";
 import transportRouter from "./modules/transport/transport.routes.js";
+import packagesRouter from "./modules/packages/packages.routes.js";
+import hotelsRouter from "./modules/hotels/hotels.routes.js";
 dotenv.config();
 
 const app = express();
@@ -19,10 +21,11 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRouter);
-
 app.use("/api/destinations", destinationsRouter);
-
+app.use("/api/hotels", hotelsRouter);
 app.use("/api/transport", transportRouter);
+app.use("/api/packages", packagesRouter);
+
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
