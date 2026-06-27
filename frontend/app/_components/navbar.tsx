@@ -71,12 +71,14 @@ export default function Navbar({ profile }: { profile: Profile | null }) {
       <div className="flex items-center gap-3">
         {profile ? (
           <>
-            <span
+            <Link
+              href="/dashboard"
               className="hidden md:block text-sm"
               style={{ color: "#a8dfc4" }}
             >
               {profile.fullName}
-            </span>
+            </Link>
+
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors"
