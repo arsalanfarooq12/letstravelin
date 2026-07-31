@@ -49,6 +49,14 @@ export async function createSession(
     ...COOKIE_OPTS,
     maxAge: 60 * 60 * 24 * 7,
   });
+  // Non-HttpOnly cookie — readable by JS for Supabase Storage uploads only
+  jar.set("lt_token_readable", accessToken, {
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 60 * 60, // 1h — matches access token lifetime
+    httpOnly: false, // intentionally readable by JS
+  });
 }
 
 /**

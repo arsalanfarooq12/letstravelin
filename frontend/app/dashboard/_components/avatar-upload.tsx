@@ -2,8 +2,8 @@
 
 import { useState, useTransition, useRef } from "react";
 import Image from "next/image";
-import { Camera, Link, Loader2, User, X } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Camera, Link, Loader2, User } from "lucide-react";
+import { createBrowserClient } from "@supabase/ssr";
 import { updateAvatarUrl } from "@/lib/avatar-actions";
 import { useStore } from "@/lib/store";
 
@@ -31,6 +31,17 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Get the Supabase access token from the lt_token_readable cookie
+  // This is the user's JWT which satisfies auth.uid() in RLS policies
+  function getSupabaseToken(): string | null {
+    return (
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("lt_token_readable="))
+        ?.split("=")[1] ?? null
+    );
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -44,17 +55,37 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
 
     startTransition(async () => {
       try {
+        const accessToken = getSupabaseToken();
+        if (!accessToken) throw new Error("Not authenticated");
+
+        // Create a Supabase client authenticated with the user's JWT
+        // This makes auth.uid() resolve correctly in RLS policies
+        const supabaseAuthed = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            },
+          }
+        );
+
         const ext = file.name.split(".").pop();
         const path = `${userId}/avatar.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabaseAuthed.storage
           .from("avatars")
           .upload(path, file, { upsert: true });
 
         if (uploadError) throw new Error(uploadError.message);
 
-        const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-        const publicUrl = `${data.publicUrl}?t=${Date.now()}`; // cache bust
+        const { data } = supabaseAuthed.storage
+          .from("avatars")
+          .getPublicUrl(path);
+
+        const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
 
         const result = await updateAvatarUrl(publicUrl);
         if (result.error) throw new Error(result.error);
@@ -95,7 +126,7 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
     .slice(0, 2);
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-4  ">
       {/* Avatar display */}
       <div className="relative">
         <div
@@ -103,6 +134,7 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
           style={{
             background: preview ? undefined : "var(--brand-green)",
             color: "white",
+            position: "relative",
           }}
         >
           {preview ? (
@@ -118,11 +150,10 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
           )}
         </div>
 
-        {/* Upload trigger */}
         <button
           onClick={() => fileRef.current?.click()}
           disabled={isPending}
-          className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-md"
+          className=" -bottom-2  -right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-md"
           style={{
             background: "var(--brand-yellow)",
             color: "var(--brand-green)",
@@ -144,7 +175,7 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
         />
       </div>
 
-      {/* URL option toggle */}
+      {/* URL option */}
       <button
         onClick={() => setShowUrl((v) => !v)}
         className="flex items-center gap-1.5 text-xs"
@@ -154,7 +185,6 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
         {showUrl ? "Cancel" : "Use image URL instead"}
       </button>
 
-      {/* URL input */}
       {showUrl && (
         <form onSubmit={handleUrlSubmit} className="flex gap-2 w-full max-w-xs">
           <input
@@ -162,7 +192,7 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             placeholder="https://…"
-            className="flex-1 h-9 rounded-lg px-3 text-xs outline-none"
+            className="flex-1 h-9  rounded-lg px-3 text-xs outline-none"
             style={FIELD_STYLE}
           />
           <button
@@ -176,11 +206,11 @@ export default function AvatarUpload({ currentUrl, userId, fullName }: Props) {
         </form>
       )}
 
-      {error && (
+      {/* {error && (
         <p className="text-xs" style={{ color: "#991b1b" }}>
           {error}
         </p>
-      )}
+      )} */}
       {success && (
         <p className="text-xs" style={{ color: "#166534" }}>
           Avatar updated!

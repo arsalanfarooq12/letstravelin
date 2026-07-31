@@ -75,7 +75,7 @@ export default function ProfileTab({
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-lg">
+    <div className="flex flex-col gap-6 max-w-lg ">
       {/* Avatar section */}
       <div
         className="rounded-2xl p-6 flex flex-col items-center gap-2"
